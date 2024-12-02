@@ -3,7 +3,6 @@ from PIL import ImageEnhance
 import random
 from datasets import load_dataset
 from torch.utils.data import Dataset
-import math
 
 
 class FlickrDatatset(Dataset):
@@ -35,23 +34,6 @@ class FlickrDatatset(Dataset):
         for row in hg_ds:
             pairs = [(int(row["img_id"]), caption) for caption in row["caption"]]
             self.img_caption_pairs.extend(pairs)
-
-    def rotate_and_crop(self, img, angle):
-        rotated = img.rotate(angle, expand=True)
-        angle_rad = math.radians(angle % 360)
-        w, h = img.size
-        cos_a = abs(math.cos(angle_rad))
-        sin_a = abs(math.sin(angle_rad))
-        new_w = w * cos_a + h * sin_a
-        new_h = w * sin_a + h * cos_a
-        scale = min(w / new_w, h / new_h)
-        crop_w = new_w * scale
-        crop_h = new_h * scale
-        left = (rotated.width - crop_w) / 2
-        top = (rotated.height - crop_h) / 2
-        right = left + crop_w
-        bottom = top + crop_h
-        return rotated.crop((left, top, right, bottom))
 
     def __len__(self):
         return len(self.img_caption_pairs)
