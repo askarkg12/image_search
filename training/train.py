@@ -29,10 +29,10 @@ LAST_CHECKPOINT = CHECKPOINT_DIR / "latest_checkpoint.pth"
 USE_WANDB = True
 BATCH_SIZE = 32
 VAL_BATCH_SIZE = 48
-MINI_VAL_PERIOD = 500
-CHECKPOINTS_PERIOD = 5000
+MINI_VAL_PERIOD = 100
+CHECKPOINTS_PERIOD = 2000
 
-USE_MINIO = False
+USE_MINIO = True
 
 epoch = 0
 datapoint_counter = 0
@@ -67,6 +67,32 @@ criterion = torch.nn.TripletMarginWithDistanceLoss(
 if USE_WANDB:
     wandb.init(project="img_search", name="two-tower")
 
+try:
+    batch = next(val_iter)
+except StopIteration:
+    val_iter = iter(val_dl)
+val_loss = val_pass(model, criterion, batch)
+wandb.log(
+    {
+        "mini_val_loss": val_loss,
+        "epoch": epoch,
+        "data_counter": datapoint_counter,
+    }
+            )
+
+big_val_loss = []
+for batch in val_dl:
+    big_val_loss.append(val_pass(model, criterion, batch))
+
+val_loss = sum(big_val_loss) / len(big_val_loss)
+
+wandb.log(
+    {
+        "big_val_loss": val_loss,
+        "epoch": epoch,
+        "data_counter": datapoint_counter,
+    }
+)
 while True:
     try:
         if val_datapoint_counter >= MINI_VAL_PERIOD:
