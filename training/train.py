@@ -15,7 +15,7 @@ from models.base.collate import collate_fn
 from training.train_pass import train_pass
 from training.val_pass import val_pass
 from flickr_dataset import FlickrDatatset
-from utils.minio_utils import upload_to_minio
+from utils.minio_utils import upload_checkpoint_minio
 
 
 torch.manual_seed(42)
@@ -78,7 +78,7 @@ wandb.log(
         "epoch": epoch,
         "data_counter": datapoint_counter,
     }
-            )
+)
 
 big_val_loss = []
 for batch in val_dl:
@@ -130,7 +130,7 @@ while True:
 
             if USE_MINIO:
                 threading.Thread(
-                    target=upload_to_minio, args=(LAST_CHECKPOINT,)
+                    target=upload_checkpoint_minio, args=(LAST_CHECKPOINT,)
                 ).start()
 
             checkpoint_val_counter = 0

@@ -25,13 +25,12 @@ if USE_MINIO:
         raise Exception(f"Missing environment variable: {e}")
 
 
-def upload_to_minio(path):
+def upload_checkpoint_minio(path):
     if USE_MINIO:
         try:
             minio_client.fput_object("img-search", "latest-checkpoint.pt", path)
         except Exception as e:
             print(f"Error uploading to minio: {e}")
-            # raise e
 
 
 if __name__ == "__main__":
