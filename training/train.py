@@ -10,9 +10,11 @@ from pathlib import Path
 repo_dir = Path(__file__).parent.parent
 sys.path.append(str(repo_dir))
 
-from models.model import TwoTower
+from models.base.model import TwoTower
+from models.base.collate import collate_fn
 from training.train_pass import train_pass
 from training.val_pass import val_pass
+from flickr_dataset import FlickrDatatset
 
 
 torch.manual_seed(42)
@@ -31,16 +33,16 @@ CHECKPOINTS_PERIOD = 500
 epoch = 0
 datapoint_counter = 0  # Doesnt have to start from 0 if loaded from checkpoint
 val_datapoint_counter = 0
-train_ds = None  # TODO
+train_ds = FlickrDatatset(split="train")
 train_dl = DataLoader(
-    train_ds, batch_size=BATCH_SIZE, shuffle=True, collate_fn=train_ds.collate_fn
+    train_ds, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn
 )
 
 train_iter = iter(train_dl)
 
-val_ds = None  # TODO
+val_ds = FlickrDatatset(split="val")
 val_dl = DataLoader(
-    val_ds, batch_size=VAL_BATCH_SIZE, shuffle=True, collate_fn=val_ds.collate_fn
+    val_ds, batch_size=VAL_BATCH_SIZE, shuffle=True, collate_fn=collate_fn
 )
 
 
