@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from models.text_tower import TextEncoder
-from models.image_tower import ImageEncoder
+from .text_tower import TextEncoder
+from .image_tower import ImageEncoder
 
 
 class TwoTower(nn.Module):
