@@ -1,5 +1,8 @@
 import os
 from minio import Minio
+from dotenv import load_dotenv
+
+load_dotenv()
 
 if "MINIO_SERVER" not in os.environ:
     USE_MINIO = False
@@ -29,3 +32,7 @@ def upload_to_minio(path):
         except Exception as e:
             print(f"Error uploading to minio: {e}")
             # raise e
+
+
+if __name__ == "__main__":
+    pass
