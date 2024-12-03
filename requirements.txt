@@ -5,3 +5,5 @@ wandb
 transformers
 minio
 python-dotenv
+fastapi
+streamlit
