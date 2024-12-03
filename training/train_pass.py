@@ -4,6 +4,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def train_pass(model, criterion, optimizer, batch):
+    model.train()
     tokens, pos_patches, neg_patches = (
         batch[0].to(device),
         batch[1].to(device),

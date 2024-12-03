@@ -2,5 +2,8 @@ torch
 torchvision
 datasets
 wandb
+transformers
+minio
+python-dotenv
 fastapi
 streamlit
