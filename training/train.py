@@ -15,6 +15,7 @@ from models.base.collate import collate_fn
 from training.train_pass import train_pass
 from training.val_pass import val_pass
 from flickr_dataset import FlickrDatatset
+from utils.minio_utils import upload_to_minio
 
 
 torch.manual_seed(42)
@@ -28,22 +29,29 @@ LAST_CHECKPOINT = CHECKPOINT_DIR / "latest_checkpoint.pth"
 USE_WANDB = True
 BATCH_SIZE = 32
 VAL_BATCH_SIZE = 48
-VAL_EVERY_N_DATA = 5000
-CHECKPOINTS_PERIOD = 500
+MINI_VAL_PERIOD = 500
+CHECKPOINTS_PERIOD = 5000
+
+USE_MINIO = False
+
 epoch = 0
-datapoint_counter = 0  # Doesnt have to start from 0 if loaded from checkpoint
+datapoint_counter = 0
 val_datapoint_counter = 0
-train_ds = FlickrDatatset(split="train")
+checkpoint_val_counter = 0
+
+train_ds = FlickrDatatset(split="train", split_size=0.1)
 train_dl = DataLoader(
     train_ds, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn
 )
 
 train_iter = iter(train_dl)
 
-val_ds = FlickrDatatset(split="val")
+val_ds = FlickrDatatset(split="val", split_size=0.1)
 val_dl = DataLoader(
     val_ds, batch_size=VAL_BATCH_SIZE, shuffle=True, collate_fn=collate_fn
 )
+
+val_iter = iter(val_dl)
 
 
 model = TwoTower().to(device)
@@ -51,22 +59,57 @@ model = TwoTower().to(device)
 if LAST_CHECKPOINT.exists():
     model.load_state_dict(torch.load(LAST_CHECKPOINT))
 
-optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5)
 criterion = torch.nn.TripletMarginWithDistanceLoss(
-    distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y)
+    distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y, dim=-1)
 )
 
 if USE_WANDB:
-    config = {
-        "model": "BaselineImgCaptionGen",
-        "batch_size": BATCH_SIZE,
-        "checkpoint_period": CHECKPOINTS_PERIOD,
-        "lr": 1e-4,
-    }
-    wandb.init(project="img_caption", name="two-tower", config=config)
+    wandb.init(project="img_search", name="two-tower")
 
 while True:
     try:
+        if val_datapoint_counter >= MINI_VAL_PERIOD:
+            try:
+                batch = next(val_iter)
+            except StopIteration:
+                val_iter = iter(val_dl)
+                continue
+            val_loss = val_pass(model, criterion, batch)
+            wandb.log(
+                {
+                    "mini_val_loss": val_loss,
+                    "epoch": epoch,
+                    "data_counter": datapoint_counter,
+                }
+            )
+            val_datapoint_counter = 0
+            continue
+        elif checkpoint_val_counter >= CHECKPOINTS_PERIOD:
+            big_val_loss = []
+            for batch in val_dl:
+                big_val_loss.append(val_pass(model, criterion, batch))
+
+            val_loss = sum(big_val_loss) / len(big_val_loss)
+
+            wandb.log(
+                {
+                    "big_val_loss": val_loss,
+                    "epoch": epoch,
+                    "data_counter": datapoint_counter,
+                }
+            )
+
+            torch.save(model.state_dict(), LAST_CHECKPOINT)
+
+            if USE_MINIO:
+                threading.Thread(
+                    target=upload_to_minio, args=(LAST_CHECKPOINT,)
+                ).start()
+
+            checkpoint_val_counter = 0
+            continue
+
         try:
             batch = next(train_iter)
         except StopIteration:
@@ -74,31 +117,18 @@ while True:
             train_iter = iter(train_dl)
             continue
 
-        datapoint_counter += len(batch)
-        val_datapoint_counter += len(batch)
-
         loss = train_pass(model, criterion, optimizer, batch)
         wandb.log(
             {
                 "training_loss": loss,
                 "epoch": epoch,
-                "batch_num": datapoint_counter,
+                "data_counter": datapoint_counter,
             }
         )
+        datapoint_counter += len(batch)
+        val_datapoint_counter += len(batch)
+        checkpoint_val_counter += len(batch)
 
-        if val_datapoint_counter >= VAL_EVERY_N_DATA:
-            val_loss = val_pass(model, criterion, val_ds)
-            wandb.log(
-                {
-                    "val_loss": val_loss,
-                    "epoch": epoch,
-                    "batch_num": datapoint_counter,
-                }
-            )
-            val_datapoint_counter = 0
-
-            torch.save(model.state_dict(), LAST_CHECKPOINT)
-            model.train()
     except KeyboardInterrupt:
         print("\nTraining interrupted by user")
         break

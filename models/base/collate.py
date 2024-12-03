@@ -13,6 +13,8 @@ def collate_fn(batch):
     neg_imgs = torch.stack([transform(img) for img in neg_imgs])
 
     captions = tokeniser(captions, padding=True, truncation=True, return_tensors="pt")
+
+
     return captions, pos_imgs, neg_imgs
 
 
