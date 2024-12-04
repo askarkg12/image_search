@@ -1,7 +1,5 @@
-from datasets import load_dataset
 from tqdm import tqdm
 from minio_utils import get_client
-from minio import Minio
 from pathlib import Path
 import sys
 import faiss
@@ -10,10 +8,13 @@ import os
 from PIL import Image
 import torch
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 repo_dir = Path(__file__).parent.parent
 sys.path.append(str(repo_dir))
 
 from models.base.model import TwoTower
+from utils.load_model import load_model
 
 weights_dir = repo_dir / "weights"
 
@@ -45,7 +46,7 @@ def build_index(model, embed_dim: int):
             client.fget_object(image_bucket, img_name, img_path)
             img = Image.open(img_path)
 
-            processed_img = model.preprocessing(img).unsqueeze(0)
+            processed_img = model.preprocessing(img).unsqueeze(0).to(device)
             img_enc = model(processed_img)
             index.add(img_enc/img_enc.norm(p=2))
 
@@ -65,7 +66,7 @@ def build_index(model, embed_dim: int):
 
 
 if __name__ == "__main__":
-    m = TwoTower()
-    client.fget_object("img-search", "latest-checkpoint.pt", str(weights_dir / "latest-checkpoint.pt"))
-    m.load_state_dict(torch.load(weights_dir / "latest-checkpoint.pt"))
-    build_index(m.img_net, m.img_net.embed_dim)
+    model, embed_dim = load_model("current_model.pt")
+    model = model.to(device)
+    model.eval()
+    build_index(model, embed_dim)
