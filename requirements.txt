@@ -4,3 +4,5 @@ datasets
 wandb
 fastapi
 streamlit
+transformers
+faiss-cpu
