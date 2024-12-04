@@ -2,11 +2,11 @@ from pathlib import Path
 import json
 import faiss
 from minio import Minio
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 from model import TextEncoder
 import torch
 
-config = load_dotenv(".env/.minio")
+config = dotenv_values(".env")
 
 minio_client = Minio(
     config["MINIO_SERVER"],
@@ -42,4 +42,4 @@ txt_encoder.load_state_dict(torch.load(WEIGHTS_NAME))
 def top_k_images(query, k=20):
     encoding = txt_encoder(query)
     D, I = faiss_index.search(encoding, k)
-    return {d: id_lookup[str(i)] for d, i in zip(D[0], I[0])}
+    return [(d, id_lookup[str(i)]) for d, i in zip(D[0], I[0])]

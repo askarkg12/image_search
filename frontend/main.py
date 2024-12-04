@@ -4,6 +4,17 @@ from pathlib import Path
 from PIL import Image
 import zipfile
 import io
+from minio import Minio
+from dotenv import dotenv_values
+
+config = dotenv_values(".env")
+
+minio_client = Minio(
+    config["MINIO_SERVER"],
+    access_key=config["MINIO_ACCESS_KEY"],
+    secret_key=config["MINIO_SECRET_KEY"],
+    secure=False,
+)
 
 image_dir = Path(__file__).parent / "test3.jpg"
 
@@ -23,7 +34,7 @@ def fetch_filenames(search_query):
         return []
 
 
-def display_image_grid(images, cols=3, rows=2):
+def display_image_grid(images, cols=3):
     """Display a grid of images."""
     for i, img in enumerate(images):
         if (i) % cols == 0:
@@ -32,7 +43,25 @@ def display_image_grid(images, cols=3, rows=2):
             st.image(images[i])
 
 
+def fetch_images(image_names, num_images: int = 20):
+    images = []
+    for filename in image_names[:num_images]:
+        try:
+            response = minio_client.get_object("images", filename)
+            img = Image.open(io.BytesIO(response.data))
+            images.append(img)
+
+            # Close the response stream
+            response.close()
+            response.release_conn()
+        except Exception as e:
+            print(f"Error reading {filename}: {e}")
+
+    return images
+
+
 if query := st.text_input("Image Search"):
     # Fetch results from the API
     image_names = fetch_filenames(query)
-    pass
+    images = fetch_images(image_names)
+    display_image_grid(images)
