@@ -1,24 +1,23 @@
-import os
 from minio import Minio
 from dotenv import load_dotenv
 
-load_dotenv()
+minio_config = load_dotenv()
 
-if "MINIO_SERVER" not in os.environ:
+if "MINIO_SERVER" not in minio_config:
     USE_MINIO = False
 
 else:
     USE_MINIO = True
 
 if USE_MINIO:
-    if "MINIO_ACCESS_KEY" not in os.environ:
+    if "MINIO_ACCESS_KEY" not in minio_config:
         raise ValueError("MINIO_ACCESS_KEY not found in environment variables")
 
     try:
         minio_client = Minio(
-            os.environ["MINIO_SERVER"],
-            access_key=os.environ["MINIO_ACCESS_KEY"],
-            secret_key=os.environ["MINIO_SECRET_KEY"],
+            minio_config["MINIO_SERVER"],
+            access_key=minio_config["MINIO_ACCESS_KEY"],
+            secret_key=minio_config["MINIO_SECRET_KEY"],
             secure=False,
         )
     except KeyError as e:

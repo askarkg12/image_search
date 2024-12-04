@@ -9,22 +9,15 @@ image_dir = Path(__file__).parent / "test3.jpg"
 
 
 # Define a function to fetch results from the API
-def fetch_results(search_query):
+def fetch_filenames(search_query):
     # Placeholder API URL (replace with your actual API endpoint)
-    api_url = "http://nginx/api/search"
+    api_url = "http://backend:8000"
     # Send a GET request with the search query as a parameter
     response = requests.get(api_url, params={"query": search_query}, stream=True)
 
     # Check if the request was successful
     if response.status_code == 200:
-        images = []
-        # Parse ZIP file from response
-        with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-            # Extract and display each image
-            for file_name in z.namelist():
-                with z.open(file_name) as f:
-                    images.append(io.BytesIO(f.read()))
-        return images
+        return response.json()
     else:
         st.error(f"{response.status_code}: Failed to fetch results. Please try again.")
         return []
@@ -41,10 +34,5 @@ def display_image_grid(images, cols=3, rows=2):
 
 if query := st.text_input("Image Search"):
     # Fetch results from the API
-    images = fetch_results(query)
-
-    # Display results in a list format
-    if images:
-        display_image_grid(images)
-    else:
-        st.write("No results found.")
+    image_names = fetch_filenames(query)
+    pass
