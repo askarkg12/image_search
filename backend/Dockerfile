@@ -1,10 +1,11 @@
 # Use the official Python image as the base
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 # Set the working directory in the container
 WORKDIR /app
 
 # Copy the requirements file to the container
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 COPY requirements.txt .
 
 # Install dependencies
