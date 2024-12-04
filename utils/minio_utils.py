@@ -1,9 +1,9 @@
 from minio import Minio
-from dotenv import load_dotenv
+from dotenv import dotenv_values as doten
 
 ENV_FILE = ".env"
 
-minio_config = load_dotenv(ENV_FILE)
+minio_config = doten(ENV_FILE)
 
 if "MINIO_SERVER" not in minio_config:
     USE_MINIO = False

@@ -1,4 +1,5 @@
 from datasets import load_dataset
+from tqdm import tqdm
 from minio_utils import get_client
 from minio import Minio
 from pathlib import Path
@@ -16,9 +17,9 @@ from models.base.model import TwoTower
 
 weights_dir = repo_dir / "weights"
 
+client = get_client()
 
 def build_index(model, embed_dim: int):
-    client = get_client()
     id_to_file = {}
     index = faiss.IndexFlatIP(embed_dim)
     image_bucket = "images"
@@ -37,7 +38,7 @@ def build_index(model, embed_dim: int):
     ]
 
     with torch.inference_mode():
-        for i, img_name in enumerate(image_files):
+        for i, img_name in enumerate(tqdm(image_files)):
             # img = row["image"]
             _, ext = os.path.splitext(img_name)
             img_path = weights_dir / f"current_image{ext}"
@@ -45,8 +46,8 @@ def build_index(model, embed_dim: int):
             img = Image.open(img_path)
 
             processed_img = model.preprocessing(img).unsqueeze(0)
-            img_enc = model(processed_img).squeeze(0)
-            index.add(img_enc)
+            img_enc = model(processed_img)
+            index.add(img_enc/img_enc.norm(p=2))
 
             id_to_file[i] = img_name
 
@@ -65,4 +66,6 @@ def build_index(model, embed_dim: int):
 
 if __name__ == "__main__":
     m = TwoTower()
+    client.fget_object("img-search", "latest-checkpoint.pt", str(weights_dir / "latest-checkpoint.pt"))
+    m.load_state_dict(torch.load(weights_dir / "latest-checkpoint.pt"))
     build_index(m.img_net, m.img_net.embed_dim)
