@@ -7,3 +7,5 @@ minio
 python-dotenv
 fastapi
 streamlit
+transformers
+faiss-cpu

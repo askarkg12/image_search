@@ -11,6 +11,7 @@ class ImageEncoder(torch.nn.Module):
         self.preprocessing = self.weights.transforms()
         self.h = None
         self._register_hooks()
+        self.embed_dim = 768
 
     def _register_hooks(self):
         self.model.encoder.layers[-1].register_forward_hook(self._hook_fn)
