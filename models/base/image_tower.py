@@ -21,7 +21,7 @@ class ImageEncoder(torch.nn.Module):
 
     def forward(self, x):
         prd = self.model(x)
-        return self.h
+        return self.h.mean(dim=-2)
 
 
 if __name__ == "__main__":

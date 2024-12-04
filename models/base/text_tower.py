@@ -9,7 +9,9 @@ class TextEncoder(nn.Module):
         self.bert = BertModel.from_pretrained("google-bert/bert-base-uncased")
 
     def forward(self, tokens):
-        out = self.bert(tokens)
+        inpud_ids = tokens.data["input_ids"]
+        mask = tokens.data["attention_mask"]
+        out = self.bert(inpud_ids, mask)
         return out.pooler_output
 
 
