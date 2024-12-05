@@ -11,4 +11,4 @@ app = FastAPI()
 
 @app.get("/api/search")
 async def root(query: str):
-    return Response(top_k_images(query))
+    return {"image_files": top_k_images(query)}
