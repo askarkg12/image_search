@@ -42,7 +42,7 @@ def build_index(model, embed_dim: int):
     all_encodings = []
     processed_files = []
 
-    img_chunks = tqdm(chunked(image_files, 100))
+    img_chunks = tqdm(chunked(image_files, 100), total=len(image_files) // 100)
 
     with torch.inference_mode():
         for chunk in img_chunks:
@@ -61,7 +61,7 @@ def build_index(model, embed_dim: int):
                 chunk_enc.append(img_enc / img_enc.norm(p=2))
                 chunk_files.append(img_name)
 
-            enc_matrix = torch.stack(all_encodings).cpu().numpy()
+            enc_matrix = torch.cat(chunk_enc,dim=0).cpu().numpy()
             index.add(enc_matrix)
             processed_files.extend(chunk_files)
 
@@ -71,11 +71,11 @@ def build_index(model, embed_dim: int):
     client.fput_object("image-search", "index.faiss", faiss_path)
 
     # save row-to-filename lookup table
-    pickle_path = repo_dir / "weights/id_to_file.pkl"
-    with open(pickle_path, "wb") as f:
-        pickle.dump(id_to_file, f)
+    all_files_doc = repo_dir / "weights/id_to_file.pkl"
+    with open(all_files_doc, "w") as f:
+        f.writelines(processed_files)
 
-    client.fput_object("image-search", "id_to_file.pkl", pickle_path)
+    client.fput_object("image-search", "files_ordered.txt", all_files_doc)
 
 
 if __name__ == "__main__":
