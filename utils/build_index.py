@@ -25,6 +25,16 @@ client = get_client()
 def build_index(model, embed_dim: int):
     index = faiss.IndexFlatIP(embed_dim)
     image_bucket = "images"
+
+    all_files_doc = repo_dir / "weights/id_to_file.txt"
+    faiss_path = str(weights_dir / "index.faiss")
+
+    if all_files_doc.exists():
+        with open(all_files_doc, "r") as f:
+            processed_files = f.readlines()
+    else:
+        processed_files = []
+
     # Ensure the bucket exists
     if not client.bucket_exists(image_bucket):
         print(f"Bucket '{image_bucket}' does not exist.")
@@ -37,10 +47,8 @@ def build_index(model, embed_dim: int):
         obj.object_name
         for obj in objects
         if any(obj.object_name.lower().endswith(ext) for ext in image_extensions)
+        if obj.object_name not in processed_files
     ]
-
-    all_encodings = []
-    processed_files = []
 
     img_chunks = tqdm(chunked(image_files, 100), total=len(image_files) // 100)
 
@@ -61,20 +69,16 @@ def build_index(model, embed_dim: int):
                 chunk_enc.append(img_enc / img_enc.norm(p=2))
                 chunk_files.append(img_name)
 
-            enc_matrix = torch.cat(chunk_enc,dim=0).cpu().numpy()
+            enc_matrix = torch.cat(chunk_enc, dim=0).cpu().numpy()
             index.add(enc_matrix)
             processed_files.extend(chunk_files)
 
-    # save faiss index & send to minio
-    faiss_path = str(weights_dir / "index.faiss")
-    faiss.write_index(index, faiss_path)
+            faiss.write_index(index, faiss_path)
+
+            with open(all_files_doc, "w") as f:
+                f.writelines(processed_files)
+
     client.fput_object("image-search", "index.faiss", faiss_path)
-
-    # save row-to-filename lookup table
-    all_files_doc = repo_dir / "weights/id_to_file.pkl"
-    with open(all_files_doc, "w") as f:
-        f.writelines(processed_files)
-
     client.fput_object("image-search", "files_ordered.txt", all_files_doc)
 
 
