@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 import faiss
 import pickle
+from more_itertools import chunked
 import os
 from PIL import Image
 import torch
@@ -20,8 +21,8 @@ weights_dir = repo_dir / "weights"
 
 client = get_client()
 
+
 def build_index(model, embed_dim: int):
-    id_to_file = {}
     index = faiss.IndexFlatIP(embed_dim)
     image_bucket = "images"
     # Ensure the bucket exists
@@ -38,19 +39,31 @@ def build_index(model, embed_dim: int):
         if any(obj.object_name.lower().endswith(ext) for ext in image_extensions)
     ]
 
+    all_encodings = []
+    processed_files = []
+
+    img_chunks = tqdm(chunked(image_files, 100))
+
     with torch.inference_mode():
-        for i, img_name in enumerate(tqdm(image_files)):
-            # img = row["image"]
-            _, ext = os.path.splitext(img_name)
-            img_path = weights_dir / f"current_image{ext}"
-            client.fget_object(image_bucket, img_name, img_path)
-            img = Image.open(img_path)
+        for chunk in img_chunks:
+            chunk_enc = []
+            chunk_files = []
+            for img_name in chunk:
+                # img = row["image"]
+                _, ext = os.path.splitext(img_name)
+                img_path = weights_dir / f"current_image{ext}"
+                client.fget_object(image_bucket, img_name, img_path)
+                img = Image.open(img_path)
 
-            processed_img = model.preprocessing(img).unsqueeze(0).to(device)
-            img_enc = model(processed_img)
-            index.add(img_enc/img_enc.norm(p=2))
+                processed_img = model.preprocessing(img).unsqueeze(0).to(device)
+                img_enc = model(processed_img)
 
-            id_to_file[i] = img_name
+                chunk_enc.append(img_enc / img_enc.norm(p=2))
+                chunk_files.append(img_name)
+
+            enc_matrix = torch.stack(all_encodings).cpu().numpy()
+            index.add(enc_matrix)
+            processed_files.extend(chunk_files)
 
     # save faiss index & send to minio
     faiss_path = str(weights_dir / "index.faiss")
