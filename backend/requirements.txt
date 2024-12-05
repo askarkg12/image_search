@@ -2,3 +2,5 @@ fastapi[standard]
 pillow
 faiss-cpu
 python-dotenv
+minio
+transformers

@@ -1,6 +1,9 @@
 wandb/
 example
 minio
+*.pt
+backend/local
+docker-compose-sam.yml
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

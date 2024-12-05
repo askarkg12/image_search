@@ -6,6 +6,8 @@ from dotenv import dotenv_values
 from model import TextEncoder
 import torch
 
+device = "cpu"
+
 config = dotenv_values(".env")
 
 minio_client = Minio(
@@ -18,8 +20,8 @@ minio_client = Minio(
 bucket = config["MINIO_BUCKET"]
 
 FAISS_INDEX_NAME = "index.faiss"
-ID_LOOKUP_NAME = Path("filenames.txt")
-WEIGHTS_NAME = Path("txt-encoder.pt")
+ID_LOOKUP_NAME = "filenames.txt"
+WEIGHTS_NAME = "text_tower.pt"
 
 
 def make_local_vol(name):
@@ -28,16 +30,18 @@ def make_local_vol(name):
 
 minio_client.fget_object(bucket, FAISS_INDEX_NAME, make_local_vol(FAISS_INDEX_NAME))
 minio_client.fget_object(bucket, ID_LOOKUP_NAME, make_local_vol(ID_LOOKUP_NAME))
-minio_client.fget_object(bucket, ID_LOOKUP_NAME, make_local_vol(WEIGHTS_NAME))
+minio_client.fget_object(bucket, WEIGHTS_NAME, make_local_vol(WEIGHTS_NAME))
 
-faiss_index: faiss.IndexFlatIP = faiss.read_index(str(FAISS_INDEX_NAME))
+faiss_index: faiss.IndexFlatIP = faiss.read_index(make_local_vol(FAISS_INDEX_NAME))
 
-with open(ID_LOOKUP_NAME, "r") as f:
+with open(make_local_vol(ID_LOOKUP_NAME), "r") as f:
     filenames = f.readlines()
 
 
 txt_encoder = TextEncoder()
-txt_encoder.load_state_dict(torch.load(WEIGHTS_NAME))
+txt_encoder.load_state_dict(
+    torch.load(make_local_vol(WEIGHTS_NAME), map_location=device)
+)
 
 
 def top_k_images(query, k=20):
