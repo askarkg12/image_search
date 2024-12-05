@@ -5,15 +5,18 @@ services:
     container_name: frontend
     labels:
       - "traefik.enable=true"
+      - "${TRAEFIK_LABEL1}"
+      - "${TRAEFIK_LABEL2}"
+      - "${TRAEFIK_LABEL3}"
     networks:
       - traefik_default
-    volume:
+    volumes:
       - ./.env/.minio.front:/app/.env/.minio
 
   backend:
     build:
       context: ./backend
-    volume:
+    volumes:
       - ./.env/.minio:/app/.env/.minio
       - ./local:/app/local
       - ./models/base/text_tower.py:/app/model.py

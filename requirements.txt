@@ -9,3 +9,4 @@ fastapi
 streamlit
 transformers
 faiss-cpu
+more_itertools
