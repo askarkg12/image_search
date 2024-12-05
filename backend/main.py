@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from fastapi.responses import Response
 from pathlib import Path
 
 

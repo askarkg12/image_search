@@ -7,11 +7,6 @@ from model import TextEncoder
 import torch
 from transformers import BertTokenizer
 
-# REMOVE LATER (FOR TESTING FAISS LOCALLY)
-# import os
-
-# os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
 device = "cpu"
 
 config = dotenv_values(".env")
@@ -22,7 +17,6 @@ minio_client = Minio(
     secret_key=config["MINIO_SECRET_KEY"],
     secure=False,
 )
-
 
 bucket = config["MINIO_BUCKET"]
 
