@@ -76,7 +76,7 @@ def build_index(model, embed_dim: int):
             faiss.write_index(index, faiss_path)
 
             with open(all_files_doc, "w") as f:
-                f.writelines(processed_files)
+                f.writelines(line + "\n" for line in processed_files)
 
     client.fput_object("image-search", "index.faiss", faiss_path)
     client.fput_object("image-search", "files_ordered.txt", all_files_doc)
