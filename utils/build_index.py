@@ -3,7 +3,6 @@ from minio_utils import get_client
 from pathlib import Path
 import sys
 import faiss
-import pickle
 from more_itertools import chunked
 import os
 from PIL import Image
@@ -23,17 +22,25 @@ client = get_client()
 
 
 def build_index(model, embed_dim: int):
-    index = faiss.IndexFlatIP(embed_dim)
+
     image_bucket = "images"
 
-    all_files_doc = repo_dir / "weights/id_to_file.txt"
+    all_files_doc = repo_dir / "weights/filenames.txt"
     faiss_path = str(weights_dir / "index.faiss")
+
+    if os.path.exists(faiss_path):
+        index = faiss.read_index(faiss_path)
+    else:
+        index = faiss.IndexFlatIP(embed_dim)
+
 
     if all_files_doc.exists():
         with open(all_files_doc, "r") as f:
             processed_files = f.readlines()
     else:
         processed_files = []
+
+    processed_files = [line.strip() for line in processed_files]
 
     # Ensure the bucket exists
     if not client.bucket_exists(image_bucket):
@@ -45,7 +52,7 @@ def build_index(model, embed_dim: int):
     objects = client.list_objects(image_bucket)
     image_files = [
         obj.object_name
-        for obj in objects
+        for obj in tqdm(list(objects), desc="Filtering image files")
         if any(obj.object_name.lower().endswith(ext) for ext in image_extensions)
         if obj.object_name not in processed_files
     ]
@@ -63,6 +70,9 @@ def build_index(model, embed_dim: int):
                 client.fget_object(image_bucket, img_name, img_path)
                 img = Image.open(img_path)
 
+                if img.mode != "RGB":
+                    img = img.convert("RGB")
+
                 processed_img = model.preprocessing(img).unsqueeze(0).to(device)
                 img_enc = model(processed_img)
 
@@ -78,12 +88,12 @@ def build_index(model, embed_dim: int):
             with open(all_files_doc, "w") as f:
                 f.writelines(line + "\n" for line in processed_files)
 
-    client.fput_object("image-search", "index.faiss", faiss_path)
-    client.fput_object("image-search", "files_ordered.txt", all_files_doc)
+    client.fput_object("img-search", "index.faiss", faiss_path)
+    client.fput_object("img-search", "filenames.txt", all_files_doc)
 
 
 if __name__ == "__main__":
-    model, embed_dim = load_model("current_model.pt")
+    model, embed_dim = load_model("current_model.pt", use_local=True)
     model = model.to(device)
     model.eval()
     build_index(model, embed_dim)

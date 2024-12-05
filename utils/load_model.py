@@ -14,10 +14,11 @@ from models.base.model import TwoTower
 weights_dir = repo_dir / "weights"
 
 
-def load_model(weight_file):
+def load_model(weight_file, use_local=False):
     client = get_client()
     weight_path = str(weights_dir / weight_file)
-    client.fget_object("img-search", "latest-checkpoint.pt", weight_path)
+    if not use_local:
+        client.fget_object("img-search", "latest-checkpoint.pt", weight_path)
 
     model = TwoTower()
     model.load_state_dict(torch.load(weight_path, weights_only=True, map_location=device))
@@ -27,8 +28,10 @@ def load_model(weight_file):
 
     # save towers individually
     torch.save(img_tower.state_dict(), weights_dir / "img_tower.pt")
-    client.fput_object("img-search", "img_tower.pt", weights_dir / "img_tower.pt")
+    if not use_local:
+        client.fput_object("img-search", "img_tower.pt", weights_dir / "img_tower.pt")
     torch.save(text_tower.state_dict(), weights_dir / "text_tower.pt")
-    client.fput_object("img-search", "text_tower.pt", weights_dir / "text_tower.pt")
+    if not use_local:
+        client.fput_object("img-search", "text_tower.pt", weights_dir / "text_tower.pt")
 
     return img_tower, model.img_net.embed_dim
