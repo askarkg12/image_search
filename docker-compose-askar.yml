@@ -1,0 +1,31 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    depends_on:
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "${TRAEFIK_LABEL1}"
+      - "${TRAEFIK_LABEL2}"
+      - "${TRAEFIK_LABEL3}"
+    networks:
+      - traefik_default
+    volumes:
+      - ./env/.minio.front:/app/.env/.minio
+
+  backend:
+    build:
+      context: ./backend
+    volumes:
+      - ./env/.minio.back:/app/.env/.minio
+      - ./local:/app/local
+      - ./models/base/text_tower.py:/app/model.py
+    container_name: backend
+    ports:
+      - "6969:8000"
+
+networks:
+  traefik_default:
+    external: true

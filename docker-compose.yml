@@ -1,31 +1,59 @@
+version: '3.9'
+
 services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80" # Expose port 80 for external access
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app_network
+
   frontend:
     build:
-      context: ./frontend
+      context: ./frontend # Path to your Streamlit app's Dockerfile
     container_name: frontend
-    depends_on:
-      - backend
-    labels:
-      - "traefik.enable=true"
-      - "${TRAEFIK_LABEL1}"
-      - "${TRAEFIK_LABEL2}"
-      - "${TRAEFIK_LABEL3}"
-    networks:
-      - traefik_default
     volumes:
-      - ./env/.minio.front:/app/.env/.minio
+      - ./frontend:/app
+      - ./.env:/app/.env
+    expose:
+      - "8501" # Expose the internal port for communication with NGINX
+    networks:
+      - app_network
 
   backend:
     build:
-      context: ./backend
-    volumes:
-      - ./env/.minio.back:/app/.env/.minio
-      - ./local:/app/local
-      - ./models/base/text_tower.py:/app/model.py
+      context: ./backend # Path to your FastAPI app's Dockerfile
     container_name: backend
+    volumes:
+      - ./backend:/app
+      - ./.env:/app/.env
+      - ./models/base/text_tower.py:/app/model.py
+    expose:
+      - "8000" # Expose the internal port for communication with NGINX
+    networks:
+      - app_network
+  minio:
+    image: minio/minio
+    container_name: minio
+    environment:
+      - MINIO_ROOT_USER=$MINIO_ACCESS_KEY
+      - MINIO_ROOT_PASSWORD=$MINIO_SECRET_KEY
+    volumes:
+      - ./minio:/data
     ports:
-      - "6969:8000"
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - app_network
+    command: minio server /data --console-address ":9001"
+    restart: unless-stopped
 
 networks:
-  traefik_default:
-    external: true
+  app_network:
+    driver: bridge
