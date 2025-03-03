@@ -5,6 +5,7 @@ from minio import Minio
 from dotenv import dotenv_values
 from model import TextEncoder
 import torch
+from transformers import BertTokenizer
 
 device = "cpu"
 
@@ -43,8 +44,12 @@ txt_encoder.load_state_dict(
     torch.load(make_local_vol(WEIGHTS_NAME), map_location=device)
 )
 
+tokeniser = BertTokenizer.from_pretrained("google-bert/bert-base-uncased")
+
 
 def top_k_images(query, k=20):
-    encoding = txt_encoder(query)
-    D, I = faiss_index.search(encoding, k)
-    return [(d, filenames[i]) for d, i in zip(D[0], I[0])]
+    with torch.inference_mode():
+        tokens = tokeniser(query, return_tensors="pt")
+        encoding = txt_encoder(tokens)
+        D, I = faiss_index.search(encoding, k)
+        return [filenames[i] for d, i in zip(D[0], I[0])]
